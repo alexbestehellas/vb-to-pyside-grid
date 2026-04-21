@@ -8,16 +8,24 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from core.glbData import GlbData
+
 
 class Frm4(QDialog):
     """
     Dynamic grid form.
     Replacement of VB frm4.xaml / frm4.xaml.vb
-    Stage 1: Skeleton & layout only (no grids yet).
+    Stage 2: Load metadata (SysFrm, SysFrmGrd)
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, cod_sys_frm: int, parent=None):
         super().__init__(parent)
+
+        self.cod_sys_frm = cod_sys_frm
+
+        # Metadata containers
+        self.sysfrm_row = None
+        self.sysfrm_grd_rows = []
 
         # Window setup
         self.setWindowTitle("Frm4")
@@ -38,8 +46,44 @@ class Frm4(QDialog):
         self._grid_layout.setContentsMargins(0, 0, 0, 0)
         self._grid_layout.setSpacing(10)
 
+        # Load metadata
+        self._load_metadata()
+
     # ------------------------------------------------------------
-    # Lifecycle hooks (will be extended later)
+    # Metadata loading
+    # ------------------------------------------------------------
+
+    def _load_metadata(self):
+        """
+        Load SysFrm and SysFrmGrd metadata
+        """
+        glb = GlbData()
+
+        # Load SysFrm row
+        for row in glb.get_table("SysFrm"):
+            if row["Cod"] == self.cod_sys_frm:
+                self.sysfrm_row = row
+                break
+
+        if not self.sysfrm_row:
+            raise RuntimeError(f"SysFrm not found: Cod={self.cod_sys_frm}")
+
+        # Update window title from metadata
+        self.setWindowTitle(self.sysfrm_row.get("FrmCaption", "Frm4"))
+
+        # Load SysFrmGrd rows (grids of this form)
+        self.sysfrm_grd_rows = [
+            r for r in glb.get_table("SysFrmGrd")
+            if r["CodSysFrm"] == self.cod_sys_frm
+        ]
+
+        # Sort grids by row/column layout
+        self.sysfrm_grd_rows.sort(
+            key=lambda r: (r.get("RowNo", 0), r.get("ColNo", 0))
+        )
+
+    # ------------------------------------------------------------
+    # Lifecycle hooks
     # ------------------------------------------------------------
 
     def showEvent(self, event):
